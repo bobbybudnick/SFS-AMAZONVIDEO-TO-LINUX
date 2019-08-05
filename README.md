@@ -11,5 +11,7 @@ This was needed to watch in HD on the laptop again.
 
 The Android Debug Bridge platform-tools folder must be installed in home for keyboard controls to function.
 
+Playback should be full speed but the keyboard interface is slow - please be patient.
+
 The purpose of the script is not for recording video but only playing back.
 
