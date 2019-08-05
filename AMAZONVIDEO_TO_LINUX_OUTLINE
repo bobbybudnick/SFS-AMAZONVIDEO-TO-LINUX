@@ -1,0 +1,23 @@
+-----
+(this is a theorized configuration)
+linux laptop
+fire tv first/second generation
+ir receiver for fire tv
+ir transceiver for laptop
+hdmi capture device for laptop
+script with no gui opens capture device
+continuous monitoring of keystrokes
+match keystroke with ir command
+isolate device on vlan
+-----
+(this is the script-supported configuration)
+linux laptop             
+fire stick
+fire stick ethernet adapter
+hdmi capture device for laptop
+script with no gui opens capture device
+continuous monitoring of keystrokes
+match keystroke with adb shell key command
+isolate device on vlan
+-----
+
