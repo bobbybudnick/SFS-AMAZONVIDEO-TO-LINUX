@@ -1,0 +1,174 @@
+#!/bin/bash
+
+#tested on HP ENVY x360 m6 Convertible
+#kernel 4.6.0-rc5
+
+#need a check to make sure the right /dev/video device is chosen
+#sometimes after a reboot the device numbering changes
+
+#the sleep in the key routines are crucial to prevent duplication
+
+#opengl has strange errors when resuming/slow screensaver
+#glx has similar trouble
+#xvideo works ok - some audio dropouts with cache of 30
+
+#reset in case something went wrong
+killall xinput
+
+#start cvlc here with correct video and audio device
+#we need to specify the audio output as default just like the gui
+#launch audio and video separately to avoid vlc input-slave bugs
+#depending on your system devices the addresses here could be different
+#press f for fullscreen
+#ctrl-q to exit
+#do not press space at any time or confusing things will happen
+#you might also want to remove some default key mappings
+#obviously both live caching numbers must match to maintain audio video sync
+#if the live caching number is too low audio can dropout
+#if the live caching number is too high it introduces latency
+cvlc alsa://plughw:1,0 :live-caching=35 --alsa-audio-device default&
+PID_AUDIO=$!
+#device is 0 here when booted up connected
+#device is 1 here when connected after boot
+#some ugly usb bandwidth errors here when you choose the webcam instead
+#cvlc -V xvideo v4l2:///dev/video0 :live-caching=35&
+#just use default video output
+cvlc v4l2:///dev/video0 :live-caching=35&
+PID_VIDEO=$!
+
+#connect to fire stick device
+#adb must be enabled on fire stick
+#the android platform tools folder must be extracted to the home folder
+#permission must be given on fire stick on first connect
+#set dhcp static mapping to 192.168.1.250 in router
+#must specify port number to connect
+#if connection does not work restart fire stick
+~/platform-tools/adb connect 192.168.1.250:5555
+
+#start input monitoring
+#trust me this is probably the only way to do this in bash
+#delay a second to keep stray enter from registering
+sleep 1
+xinput test-xi2 2>&1 | cat > /run/shm/INPUT&
+
+while true
+do
+
+RIGHT_CHECK=$(cat /run/shm/INPUT | grep -a 'detail: 114' | wc -l)
+if [ "$RIGHT_CHECK" -ge "1" ]
+then
+sleep .15
+truncate -s 0 /run/shm/INPUT
+echo "Right Press"
+~/platform-tools/adb shell input keyevent 22
+fi
+
+LEFT_CHECK=$(cat /run/shm/INPUT | grep -a 'detail: 113' | wc -l)
+if [ "$LEFT_CHECK" -ge "1" ]
+then
+sleep .15
+truncate -s 0 /run/shm/INPUT
+echo "Left Press"
+~/platform-tools/adb shell input keyevent 21
+fi
+
+UP_CHECK=$(cat /run/shm/INPUT | grep -a 'detail: 111' | wc -l)
+if [ "$UP_CHECK" -ge "1" ]
+then
+sleep .15
+truncate -s 0 /run/shm/INPUT
+echo "Up Press"
+~/platform-tools/adb shell input keyevent 19
+fi
+
+DOWN_CHECK=$(cat /run/shm/INPUT | grep -a 'detail: 116' | wc -l)
+if [ "$DOWN_CHECK" -ge "1" ]
+then
+sleep .15
+truncate -s 0 /run/shm/INPUT
+echo "Down Press"
+~/platform-tools/adb shell input keyevent 20
+fi
+
+ENTER_CHECK=$(cat /run/shm/INPUT | grep -a 'detail: 36' | wc -l)
+if [ "$ENTER_CHECK" -ge "1" ]
+then
+sleep .15
+truncate -s 0 /run/shm/INPUT
+echo "Enter Press"
+~/platform-tools/adb shell input keyevent 66
+fi
+
+#use the right ctrl key here because we all do not have media keyboards
+PLAYPAUSE_CHECK=$(cat /run/shm/INPUT | grep -a 'detail: 105' | wc -l)
+if [ "$PLAYPAUSE_CHECK" -ge "1" ]
+then
+sleep .15
+truncate -s 0 /run/shm/INPUT
+echo "Right Ctrl/PlayPause Press"
+~/platform-tools/adb shell input keyevent 85
+fi
+
+#use right shift for escape
+#escape key already used by vlc by default
+BACK_CHECK=$(cat /run/shm/INPUT | grep -a 'detail: 62' | wc -l)
+if [ "$BACK_CHECK" -ge "1" ]
+then
+sleep .15
+truncate -s 0 /run/shm/INPUT
+echo "Right Shift/Back Press"
+~/platform-tools/adb shell input keyevent 4
+fi
+
+#reset audio debug feature
+#press left shift to deal with audio trouble
+#might be best to deal directly by increasing live-caching values above
+AUDIORESET_CHECK=$(cat /run/shm/INPUT | grep -a 'detail: 50' | wc -l)
+if [ "$AUDIORESET_CHECK" -ge "1" ]
+then
+sleep .5
+truncate -s 0 /run/shm/INPUT 
+echo "Audio Reset"
+kill $PID_AUDIO
+sleep .5
+aplay /usr/share/sounds/sound-icons/xylofon.wav
+sleep .5
+cvlc alsa://plughw:1,0 :live-caching=35 --alsa-audio-device default&
+PID_AUDIO=$!
+sleep .5
+fi
+
+#use right alt to quit
+QUIT_CHECK=$(cat /run/shm/INPUT | grep -a 'detail: 108' | wc -l)
+if [ "$QUIT_CHECK" -ge "1" ]
+then
+sleep .5
+truncate -s 0 /run/shm/INPUT 
+echo "Quitting"
+kill $PID_AUDIO
+kill $PID_VIDEO
+killall xinput
+exit
+fi
+
+if ! ps -p $PID_AUDIO > /dev/null
+then
+echo "Audio died - resetting"
+cvlc alsa://plughw:1,0 :live-caching=35 --alsa-audio-device default&
+PID_AUDIO=$!
+fi
+
+if ! ps -p $PID_VIDEO > /dev/null
+then
+echo "Video died - resetting"
+#cvlc -V xvideo v4l2:///dev/video0 :live-caching=35&
+#just use default video output
+cvlc v4l2:///dev/video0 :live-caching=35&
+PID_VIDEO=$!
+fi
+
+#this sleep controls the ui speed
+sleep .1
+
+done
+
