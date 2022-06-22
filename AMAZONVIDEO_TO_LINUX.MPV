@@ -13,6 +13,7 @@
 #xvideo works ok - some audio dropouts with cache of 30
 
 #reset in case something went wrong
+killall -9 mpv
 killall xinput
 
 #start cvlc here with correct video and audio device
